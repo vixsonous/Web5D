@@ -1,9 +1,12 @@
 import * as THREE from 'three';
 import WebGL from 'three/addons/capabilities/WebGL.js';
 import { FlyControls, OrbitControls } from 'three/examples/jsm/Addons.js';
+import gsap from 'gsap';
 
 const MAX = 99999999;
 const G = .05;
+const STARAMT = 5000;
+const DEFCAMPOS = [-60, -60, 40];
 
 class StellarObject {
     mesh;
@@ -85,6 +88,13 @@ const getDistance = (m1, m2) => {
     return Math.sqrt(Math.pow((m2.pos.x - m1.pos.x), 2) + Math.pow((m2.pos.y - m1.pos.y), 2) + Math.pow((m2.pos.z - m1.pos.z), 2));
 }
 
+const setCameraPosition = (camera, newPos) => {
+    camera.position.set(newPos[0], newPos[1], newPos[2]);
+    camera.lookAt(0, 0, 0);
+}
+
+document.querySelector("#initial-loader-text").style.opacity = 1;
+
 
 
 const scene = new THREE.Scene();
@@ -124,9 +134,9 @@ SolarSystem.mainStar = sunObj;
 
 const flyControls = new FlyControls(camera, renderer.domElement);
 const setCamera = (() => {
-    camera.position.set(-60, -60, 40);
-    camera.lookAt(0, 0, 0);
-    // camera.rotateZ(200)
+    setCameraPosition(camera, DEFCAMPOS)
+    camera.rotateZ(200)
+    SolarSystem.mainStar.mesh.add(camera)
     flyControls.movementSpeed = 50;
     flyControls.rollSpeed = 0.5;
     flyControls.autoForward = false;
@@ -187,12 +197,13 @@ const addPlanets = (() => {
     SolarSystem.planets.push(mercurySolar);
     SolarSystem.planets.push(venusSolar);
     SolarSystem.planets.push(marsSolar);
+
 })();
 
 function addStars() {
 
     const sphere = new THREE.Mesh(new THREE.IcosahedronGeometry(30, 20), mat);
-    const [x, y, z] = Array(3).fill().map(() => THREE.MathUtils.randFloatSpread(50000));
+    const [x, y, z] = Array(3).fill().map(() => THREE.MathUtils.randFloatSpread(100000));
     sphere.position.set(x, y, z);
     scene.add(sphere);
 }
@@ -201,16 +212,33 @@ for (let i = 0; i < 200; i++) {
     addStars();
 }
 
-function addFakeStars() {
-    const sphere = new THREE.Mesh(new THREE.SphereGeometry(30, 10), new THREE.MeshBasicMaterial({ map: sunTexture }));
-    const [x, y, z] = Array(3).fill().map(() => THREE.MathUtils.randFloatSpread(50000));
-    sphere.position.set(x, y, z);
-    scene.add(sphere);
+const distance = 20000
+
+const getCoordinates = () => {
+    const [x, y, z] = Array(3).fill().map(() => THREE.MathUtils.randFloatSpread(100000));
+    if (x < distance || y < distance || z < distance) {
+        return getCoordinates()
+    } else {
+        return [x, y, z]
+    }
 }
 
-for (let i = 0; i < 1000; i++) {
-    addFakeStars();
+function addFakeStars() {
+    const sphere = new THREE.InstancedMesh(new THREE.SphereGeometry(30, 10), new THREE.MeshBasicMaterial({ map: sunTexture }), STARAMT);
+    scene.add(sphere);
+
+    const obj = new THREE.Object3D()
+    for (let i = 0; i < STARAMT; i++) {
+        const [x, y, z] = Array(3).fill().map(() => THREE.MathUtils.randFloatSpread(100000));
+        obj.position.set(x, y, z);
+
+        obj.updateMatrix()
+        sphere.setMatrixAt(i, obj.matrix)
+    }
+
 }
+
+addFakeStars();
 
 const addRotation = (time) => {
     const rotationSpeed = time * 0.00001 * -1;
@@ -233,6 +261,44 @@ const addTestPlaneMesh = () => {
     scene.add(plane)
 }
 
+const followCamera = (object) => {
+    object.mesh.add(camera)
+}
+
+//client side functionalities
+document.querySelector("#about").addEventListener("click", () => {
+
+    gsap.to(camera.position, {
+        x: DEFCAMPOS[0],
+        y: DEFCAMPOS[1],
+        z: DEFCAMPOS[2],
+        duration: 5,
+        onUpdate: () => {
+            camera.lookAt(0, 0, 0)
+        },
+        onComplete: () => {
+            SolarSystem.mainStar.mesh.add(camera);
+        }
+    });
+});
+
+document.querySelector("#projects").addEventListener("click", () => {
+
+    gsap.to(camera.position, {
+        x: SolarSystem.planets[2].mesh.position.x,
+        y: SolarSystem.planets[2].mesh.position.y,
+        z: SolarSystem.planets[2].mesh.position.z,
+        duration: 5,
+        onUpdate: () => {
+            camera.lookAt(SolarSystem.planets[2].mesh.position.x, SolarSystem.planets[2].mesh.position.y, SolarSystem.planets[2].mesh.position.z)
+        },
+        onComplete: () => {
+            SolarSystem.planets[2].mesh.add(camera);
+            camera.lookAt(0, 0, 0)
+        }
+    });
+});
+
 // addTestPlaneMesh()
 
 const clock = new THREE.Clock();
@@ -240,24 +306,23 @@ const clock = new THREE.Clock();
 function animate(time) {
     requestAnimationFrame(animate);
     // camera.updateProjectionMatrix();
-
     addRotation(time);
     addMovement(time);
-    // camera.position.x = SolarSystem.planets[1].mesh.position.x;
-    // camera.position.x = SolarSystem.planets[1].mesh.position.y;
     flyControls.update(0.01);
-
     uniforms.u_time.value = clock.getElapsedTime();
     renderer.render(scene, camera);
 }
 
 if (WebGL.isWebGLAvailable()) {
-    document.querySelector("#loading").style.opacity = 0;
-    setTimeout(() => {
-        document.querySelector("#loading").remove();
-    }, 2000);
     animate();
 } else {
     const warning = WebGL.getErrorMessage();
     document.querySelector('body').appendChild(warning);
+}
+
+window.onload = () => {
+    document.querySelector("#loading").style.opacity = 0;
+    setTimeout(() => {
+        document.querySelector("#loading").remove();
+    }, 2000);
 }

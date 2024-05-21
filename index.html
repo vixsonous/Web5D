@@ -5,12 +5,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Document</title>
-    <style>
-        * {
-            margin: 0;
-            padding: 0;
-        }
+    <link rel="stylesheet" href="css/sinewave.css">
+    <link rel="stylesheet" href="css/style.css">
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Roboto:ital,wght@0,100;0,300;0,400;0,500;0,700;0,900;1,100;1,300;1,400;1,500;1,700;1,900&display=swap"
+        rel="stylesheet">
 
+    <style>
         #loading {
             position: absolute;
             width: 100vw;
@@ -23,12 +26,64 @@
             align-items: center;
             transition: all 2s;
         }
+
+        #initial-loader-text {
+            font-size: 5rem;
+            letter-spacing: 6px;
+            position: relative;
+            opacity: 0;
+            transition: all 2s;
+        }
+
+        #initial-loader-text::after {
+            border: 2px solid white;
+            width: 5rem;
+            content: '';
+            position: absolute;
+            bottom: 20px;
+            right: -50px;
+        }
     </style>
 </head>
 
 <body>
     <div id="loading">
-        <h1>Hello my nigga</h1>
+        <h1 id="initial-loader-text">Web5D</h1>
+    </div>
+    <div>
+        <svg class="waves" xmlns="http://www.w3.org/2000/svg" xmlns:xlink="http://www.w3.org/1999/xlink"
+            viewBox="0 24 150 28" preserveAspectRatio="none" shape-rendering="auto">
+            <defs>
+                <path id="gentle-wave" d="M-160 44c30 0 58-18 88-18s 58 18 88 18 58-18 88-18 58 18 88 18 v44h-352z" />
+            </defs>
+            <g class="parallax">
+                <use xlink:href="#gentle-wave" x="48" y="0" fill="rgba(10,10,10,0.7" />
+                <use xlink:href="#gentle-wave" x="48" y="3" fill="rgba(10,10,10,0.5)" />
+                <use xlink:href="#gentle-wave" x="48" y="5" fill="rgba(10,10,10,0.3)" />
+                <use xlink:href="#gentle-wave" x="48" y="7" fill="#00000" />
+            </g>
+        </svg>
+    </div>
+    <div id="afterloading">
+        <div id="menu">
+            <h1 id="menu-title">Web5D</h1>
+            <div id="mini-menu">
+                <h1 id="about">About</h1>
+                <h1 id="projects">Projects</h1>
+                <h1 id="contact">Contact</h1>
+            </div>
+        </div>
+        <div id="body">
+            <div id="about-description">
+                <h1 id="about-description-text"><span id="first-letter">L</span>orem ipsum dolor, sit amet consectetur
+                    adipisicing elit. Ipsam
+                    voluptatem provident
+                    perferendis
+                    velit
+                    inventore animi, soluta ipsa sed quaerat debitis esse maxime voluptate libero id optio minus atque.
+                    Unde, repellendus!</h1>
+            </div>
+        </div>
     </div>
     <script id="vertexshader" type="vertexshader">
         #define USE_MAP true
