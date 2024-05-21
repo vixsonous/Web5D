@@ -275,9 +275,11 @@ document.querySelector("#about").addEventListener("click", () => {
         duration: 5,
         onUpdate: () => {
             camera.lookAt(0, 0, 0)
+            console.log(camera.position)
         },
         onComplete: () => {
             SolarSystem.mainStar.mesh.add(camera);
+            camera.lookAt(0, 0, 0)
         }
     });
 });
