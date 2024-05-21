@@ -99,6 +99,7 @@ document.querySelector("#initial-loader-text").style.opacity = 1;
 
 const scene = new THREE.Scene();
 const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, MAX);
+camera.name = "MainCam"
 
 const renderer = new THREE.WebGLRenderer();
 renderer.setSize(window.innerWidth, window.innerHeight);
@@ -135,8 +136,6 @@ SolarSystem.mainStar = sunObj;
 const flyControls = new FlyControls(camera, renderer.domElement);
 const setCamera = (() => {
     setCameraPosition(camera, DEFCAMPOS)
-    camera.rotateZ(200)
-    SolarSystem.mainStar.mesh.add(camera)
     flyControls.movementSpeed = 50;
     flyControls.rollSpeed = 0.5;
     flyControls.autoForward = false;
@@ -261,10 +260,6 @@ const addTestPlaneMesh = () => {
     scene.add(plane)
 }
 
-const followCamera = (object) => {
-    object.mesh.add(camera)
-}
-
 //client side functionalities
 document.querySelector("#about").addEventListener("click", () => {
 
@@ -275,11 +270,10 @@ document.querySelector("#about").addEventListener("click", () => {
         duration: 5,
         onUpdate: () => {
             camera.lookAt(0, 0, 0)
-            console.log(camera.position)
         },
         onComplete: () => {
-            SolarSystem.mainStar.mesh.add(camera);
             camera.lookAt(0, 0, 0)
+
         }
     });
 });
@@ -295,7 +289,6 @@ document.querySelector("#projects").addEventListener("click", () => {
             camera.lookAt(SolarSystem.planets[2].mesh.position.x, SolarSystem.planets[2].mesh.position.y, SolarSystem.planets[2].mesh.position.z)
         },
         onComplete: () => {
-            SolarSystem.planets[2].mesh.add(camera);
             camera.lookAt(0, 0, 0)
         }
     });
