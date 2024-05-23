@@ -69,6 +69,7 @@
             <h1 id="menu-title">Web5D</h1>
             <div id="mini-menu">
                 <h1 id="about">About</h1>
+                <h1 id="services">Services</h1>
                 <h1 id="projects">Projects</h1>
                 <h1 id="contact">Contact</h1>
             </div>
@@ -187,7 +188,7 @@
 
         void main() {
             vUv = uv;
-            float noise = 5.0 *  pnoise(position + (u_time / 3.0), vec3(10.0));
+            float noise = 20.0 *  pnoise(position + (u_time / 3.0), vec3(10.0));
             float displacement = noise / 10.0;
             vnoise = noise;
             vec3 newPosition = position + normal * displacement;
