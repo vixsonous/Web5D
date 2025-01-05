@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { sunTexture, earthTexture } from '/texture/texture-loader';
+import { sunTexture, earthTexture } from '/public/texture/texture-loader';
 
 export const uniforms = {
     u_resolution: { type: 'v2', value: new THREE.Vector2(window.innerWidth, window.innerHeight) },

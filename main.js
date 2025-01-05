@@ -2,10 +2,10 @@ import * as THREE from 'three';
 import WebGL from 'three/addons/capabilities/WebGL.js';
 import { GLTFLoader, OrbitControls, RGBELoader } from 'three/examples/jsm/Addons.js';
 import { TEXTDEF } from './constants';
-import { uniforms } from '/shaderfiles/uniform';
-import { shaders } from '/shaderfiles/shadermaterial';
+import { uniforms } from '/public/shaderfiles/uniform';
+import { shaders } from '/public/shaderfiles/shadermaterial';
 import gsap from 'gsap';
-import { earthClouds, earthEmission, earthNormalMap, earthRoughness, earthTexture, earthTopography, marsTexture, mercuryTexture, sunTexture, venusTexture } from '/texture/texture-loader';
+import { earthClouds, earthEmission, earthNormalMap, earthRoughness, earthTexture, earthTopography, marsTexture, mercuryTexture, sunTexture, venusTexture } from '/public/texture/texture-loader';
 
 const _GVAR = {
     currentNearObjectIndex: 0,
