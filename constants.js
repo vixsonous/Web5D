@@ -1,3 +1,4 @@
 export const TEXTDEF = {
-    about: "<h1 id='about-description-text'><span id='first-letter'>A</span>t Web5D, we are passionate about leveraging cutting-edge technologies to bring your ideas to life. With a team of skilled developers, designers, and creative minds, we specialize in crafting innovative solutions across various domains, including web applications, 3D applications, and a wide range of software applications tailored to your specific needs.</h1>"
+    about: "<h1 id='about-description-text'><span id='first-letter'>A</span>t Web5D, we are passionate about leveraging cutting-edge technologies to bring your ideas to life. With a team of skilled developers, designers, and creative minds, we specialize in crafting innovative solutions across various domains, including web applications, 3D applications, and a wide range of software applications tailored to your specific needs.</h1>",
+    contact: "<h1 id='about-description-text'><span id='first-letter'>W</span>hether you have a question about our products, need assistance with an order, or just want to chat, we’re here to help. Don’t hesitate to reach out—we’re looking forward to hearing from you!</h1>"
 }

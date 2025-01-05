@@ -1,22 +1,23 @@
 import * as THREE from 'three';
 import WebGL from 'three/addons/capabilities/WebGL.js';
-import { OrbitControls } from 'three/examples/jsm/Addons.js';
+import { GLTFLoader, OrbitControls, RGBELoader } from 'three/examples/jsm/Addons.js';
 import { TEXTDEF } from './constants';
 import { uniforms } from './shaderfiles/uniform';
-import { mat } from './shaderfiles/shadermaterial';
+import { shaders } from './shaderfiles/shadermaterial';
 import gsap from 'gsap';
-import { earthTexture, marsTexture, mercuryTexture, sunTexture, venusTexture } from './texture/texture-loader';
+import { earthClouds, earthEmission, earthNormalMap, earthRoughness, earthTexture, earthTopography, marsTexture, mercuryTexture, sunTexture, venusTexture } from './texture/texture-loader';
 
-const MAX = 99999999;
-const G = .05;
-const STARAMT = 10000;
-const DEFCAMPOS = [-200, 0, 0];
 const _GVAR = {
     currentNearObjectIndex: 0,
     objectTexts: [
         `<h1 id="about-description-text"><span id="first-letter">T</span>his is a red box</h1>`,
         `<h1 id="about-description-text"><span id="first-letter">T</span>his is a yellow box</h1>`
-    ]
+    ],
+    DEFCAMPOS: [-200, 0, 0],
+    STARAMT: 50000,
+    G: .05,
+    MAX: 99999999,
+    starDetailSize: 100,
 }
 
 class StellarObject {
@@ -26,21 +27,23 @@ class StellarObject {
     r;
     mass;
     objects;
+    group;
 
-    constructor(mesh, pos, v, r, mass, objects = []) {
+    constructor(mesh, pos, v, r, mass, objects = [], group = null) {
         this.mesh = mesh;
         this.pos = pos;
         this.v = v;
         this.r = r;
         this.mass = mass;
         this.objects = objects;
+        this.group = group;
     }
 
     move(object) {
         const d = getDistance(object.pos, this.pos);
         const newVec = object.pos.sub(this.pos);
         // console.log("newVec x " + newVec.x + " old vec x  " + object.pos.x)
-        const f = newVec.setMag((G * ((this.mass * object.mass) / Math.pow(d, 2))));
+        const f = newVec.setMag((_GVAR.G * ((this.mass * object.mass) / Math.pow(d, 2))));
 
         this.v.x += f.x / this.mass;
         this.v.y += f.y / this.mass;
@@ -89,10 +92,6 @@ class Vector3 {
         return new Vector3(this.x, this.y, this.z);
     }
 
-    getMag() {
-        return Math.sqrt(Math.pow(this.x, 2) + Math.pow(this.y, 2) + Math.pow(this.z, 2));
-    }
-
     copy() {
         return new Vector3(this.x, this.y, this.z);
     }
@@ -108,12 +107,23 @@ const setCameraPosition = (camera, newPos) => {
     camera.lookAt(0, 0, 0);
 }
 
+const getMag = (vector) => {
+    return Math.sqrt(Math.pow(vector.x, 2) + Math.pow(vector.y, 2) + Math.pow(vector.z, 2));
+}
+
+const getRotatedVelocityVector = (coordinates) => {
+    const planetVel = new THREE.Vector3(coordinates.x, coordinates.y, coordinates.z);
+    planetVel.applyAxisAngle(new THREE.Vector3(0, 1, 0), Math.PI / 2)
+    const f = Math.sqrt((_GVAR.G * .0005) * SolarSystem.mainStar.mass / getMag(coordinates))
+
+    return new THREE.Vector3(planetVel.x * f, planetVel.y * f, planetVel.z * f);
+}
+
 if (document.querySelector("#initial-loader-text")) document.querySelector("#initial-loader-text").style.opacity = 1;
 
-
-
+// initialzing scene
 const scene = new THREE.Scene();
-const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, MAX);
+const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, _GVAR.MAX);
 
 const renderer = new THREE.WebGLRenderer({
     antialias: true
@@ -122,8 +132,34 @@ const renderer = new THREE.WebGLRenderer({
 renderer.setSize(window.innerWidth, window.innerHeight);
 document.body.appendChild(renderer.domElement);
 
+//initialize star
 const SolarSystem = new System();
-const sunObj = new StellarObject(new THREE.Mesh(new THREE.IcosahedronGeometry(100, 100), mat), new Vector3(), new Vector3(), 50, 1000);
+
+const mat = new THREE.ShaderMaterial({
+    uniforms,
+    vertexShader: shaders.sunVertexShader,
+    fragmentShader: shaders.sunFragmentShader,
+});
+
+const starMesh = new THREE.Mesh(new THREE.IcosahedronGeometry(100, _GVAR.starDetailSize), mat);
+starMesh.add(
+    new THREE.Mesh(new THREE.IcosahedronGeometry(100, _GVAR.starDetailSize), new THREE.MeshBasicMaterial({ color: 0xFFFFFF })).scale.setScalar(2)
+)
+
+const sunLayerSize = 2;
+// for (let i = 0; i < sunLayerSize; i++) {
+//     starMesh.add(
+//         new THREE.Mesh(new THREE.IcosahedronGeometry(100, _GVAR.starDetailSize), new THREE.ShaderMaterial({
+//             uniforms,
+//             vertexShader: shaders[`layer${parseInt(i) + 2}Vertexshader`],
+//             fragmentShader: shaders[`layer${parseInt(i) + 2}Fragmentshader`],
+//             blending: THREE.AdditiveBlending
+//         }))
+//     )
+
+// }
+
+const sunObj = new StellarObject(starMesh, new Vector3(), new Vector3(), 50, 1000);
 scene.add(sunObj.mesh);
 
 SolarSystem.mainStar = sunObj;
@@ -134,7 +170,7 @@ const yaw = new THREE.Object3D();
 const pitch = new THREE.Object3D();
 
 const setCamera = (() => {
-    setCameraPosition(camera, DEFCAMPOS);
+    setCameraPosition(camera, _GVAR.DEFCAMPOS);
 
     pivot.position.set(0, 0, 0)
     scene.add(pivot);
@@ -150,49 +186,90 @@ const setCamera = (() => {
 })();
 
 const addLights = (() => {
-    const ambLight = new THREE.AmbientLight(0xFFFFFFF, 0.5);
-    scene.add(ambLight);
 
-    const pointLight = new THREE.PointLight(0xFFFFFF, 1000, MAX, 1);
+    scene.add(new THREE.AmbientLight(0xFFFFFF, .009))
+    const pointLight = new THREE.PointLight(0xFFFFFF, 10000, _GVAR.MAX, 1);
     pointLight.position.set(0, 0, 0);
 
-    scene.add(pointLight);
+    SolarSystem.mainStar.mesh.add(pointLight);
 })();
 
-const createPlanetInstance = (map, radius, mass, coordinates) => {
+const createPlanetInstance = (map, radius, mass, coordinates, rotation) => {
     const planet = new THREE.Mesh(new THREE.IcosahedronGeometry(radius, 50), new THREE.MeshLambertMaterial({ map: map }));
 
+    const newVel = getRotatedVelocityVector(coordinates);
     planet.position.set(coordinates.x, coordinates.y, coordinates.z)
+    planet.rotation.z = rotation;
 
-    return new StellarObject(planet, new Vector3(planet.position.x, planet.position.y, planet.position.z), new Vector3(10, 0, -5), radius, mass);
+    return new StellarObject(planet, new Vector3(planet.position.x, planet.position.y, planet.position.z), newVel, radius, mass);
 }
 
 const instantiateObjectToObject = (objects, index, color) => {
 
-    const mesh = new THREE.Mesh(new THREE.BoxGeometry(50, 30), new THREE.MeshBasicMaterial({ color: color }));
+    const mesh = new THREE.Mesh(new THREE.BoxGeometry(50, 30), new THREE.MeshStandardMaterial({ color: color }));
     objects[index] = mesh;
     scene.add(mesh);
+}
+
+const createEarth = (map, radius, mass, coordinates) => {
+    const earthGroup = new THREE.Group();
+
+    const cloudsMesh = new THREE.Mesh(new THREE.IcosahedronGeometry(radius, 50), new THREE.MeshPhongMaterial({
+        map: earthClouds,
+        blending: THREE.AdditiveBlending,
+        transparent: true,
+        opacity: 0.9
+    }));
+
+    const atmosphere = new THREE.Mesh(new THREE.IcosahedronGeometry(radius, 50), new THREE.MeshPhongMaterial({
+        color: 0x0098e1,
+        blending: THREE.AdditiveBlending,
+        transparent: true,
+        opacity: 0.8
+
+    }));
+
+    atmosphere.scale.setScalar(1.040);
+    cloudsMesh.scale.setScalar(1.025);
+
+    const planet = new THREE.Mesh(new THREE.IcosahedronGeometry(radius, 100), new THREE.MeshPhongMaterial({
+        map: earthTexture,
+        emissive: 0xFFFFFF,
+        emissiveMap: earthEmission,
+        emissiveIntensity: 1,
+        normalMap: earthNormalMap,
+        displacementMap: earthTopography,
+        displacementScale: 3,
+    }));
+
+    earthGroup.add(atmosphere);
+    planet.rotation.z = -23.4 * Math.PI / 180;
+    earthGroup.add(planet);
+    cloudsMesh.name = "cloud";
+    earthGroup.add(cloudsMesh);
+    // earthGroup.position.set(coordinates.x, coordinates.y, coordinates.z)
+    planet.position.set(coordinates.x, coordinates.y, coordinates.z)
+    scene.add(earthGroup)
+
+    console.log(getRotatedVelocityVector(coordinates))
+    return new StellarObject(planet, new Vector3(planet.position.x, planet.position.y, planet.position.z), getRotatedVelocityVector(coordinates), radius, mass, [], earthGroup);
 }
 
 
 const instantiatePlanets = (() => {
 
-    const mercurySolar = createPlanetInstance(mercuryTexture, 40, 20, new THREE.Vector3(6000, 0, 6000));
-
-    const venusSolar = createPlanetInstance(venusTexture, 65, 45, new THREE.Vector3(12000, 0, -12000));
-
-    const earthSolar = createPlanetInstance(earthTexture, 70, 50, new THREE.Vector3(18000, 0, 18000));
-
-    const marsSolar = createPlanetInstance(marsTexture, 60, 40, new THREE.Vector3(24000, 0, -24000));
+    const mercurySolar = createPlanetInstance(mercuryTexture, 40, 20, new THREE.Vector3(6000, 0, 6000), -25);
+    const venusSolar = createPlanetInstance(venusTexture, 65, 45, new THREE.Vector3(12000, 0, -12000), 30);
+    const earthSolar = createEarth(earthTexture, 70, 50, new THREE.Vector3(18000, 0, 18000));
+    const marsSolar = createPlanetInstance(marsTexture, 60, 40, new THREE.Vector3(24000, 0, -24000), -50);
 
     instantiateObjectToObject(SolarSystem.objects, 0, "red");
     instantiateObjectToObject(SolarSystem.objects, 1, "yellow");
 
     scene.add(mercurySolar.mesh);
     scene.add(venusSolar.mesh);
-    scene.add(earthSolar.mesh);
+    // scene.add(earthSolar.mesh);
     scene.add(marsSolar.mesh);
-
 
     SolarSystem.planets.push(mercurySolar);
     SolarSystem.planets.push(venusSolar);
@@ -202,6 +279,7 @@ const instantiatePlanets = (() => {
 })();
 
 const PROJECTPLANET = SolarSystem.planets[2].mesh;
+const PROJECTPLANETGROUP = SolarSystem.planets[2].group.children;
 
 function addStars() {
 
@@ -211,29 +289,38 @@ function addStars() {
     scene.add(sphere);
 }
 
-for (let i = 0; i < 200; i++) {
-    addStars();
-}
+// for (let i = 0; i < 200; i++) {
+//     addStars();
+// }
 
 const distance = 20000
 
 const getCoordinates = () => {
     const [x, y, z] = Array(3).fill().map(() => THREE.MathUtils.randFloatSpread(100000));
-    if (x < distance && y < distance && z < distance) {
+    if (x < distance || y < distance || z < distance) {
         return getCoordinates()
     } else {
         return [x, y, z]
     }
 }
 
+
+
 function addFakeStars() {
-    const sphere = new THREE.InstancedMesh(new THREE.SphereGeometry(30, 10), new THREE.MeshBasicMaterial({ map: sunTexture }), STARAMT);
+    const sphere = new THREE.InstancedMesh(new THREE.SphereGeometry(10, 5), new THREE.MeshBasicMaterial({ map: sunTexture }), _GVAR.STARAMT);
     scene.add(sphere);
 
     const obj = new THREE.Object3D()
-    for (let i = 0; i < STARAMT; i++) {
+    for (let i = 0; i < _GVAR.STARAMT; i++) {
         const [x, y, z] = Array(3).fill().map(() => THREE.MathUtils.randFloatSpread(100000));
         obj.position.set(x, y, z);
+
+        // // const z = THREE.MathUtils.randFloatSpread(100000)
+        // const r = THREE.MathUtils.randInt(SolarSystem.mainStar.r + 10000, 100000);
+        // const theta = THREE.MathUtils.randFloatSpread(Math.PI * 2);
+        // const vecPos = new THREE.Vector3(r * Math.cos(theta), r * Math.sin(theta), THREE.MathUtils.randFloatSpread(100000));
+        // obj.position.set(vecPos.x, vecPos.y, vecPos.z);
+
 
         obj.updateMatrix()
         sphere.setMatrixAt(i, obj.matrix)
@@ -247,17 +334,33 @@ const addRotation = (delta) => {
     const rotationSpeed = delta * 0.05 * -1 || 0;
     SolarSystem.mainStar.mesh.rotation.y = SolarSystem.mainStar.mesh.rotation.y + rotationSpeed;
 
+    // Apply the combined rotation to the mesh
+
     for (let i = 0; i < SolarSystem.planets.length; i++) {
         SolarSystem.planets[i].mesh.rotation.y = SolarSystem.planets[i].mesh.rotation.y + rotationSpeed;
+        if (SolarSystem.planets[i].group != null) {
+            for (let j = 0; j < SolarSystem.planets[i].group.children.length; j++) {
+                let tempRotSpeed = SolarSystem.planets[i].group.children[j].name == "cloud" ? rotationSpeed * 3 : rotationSpeed;
+                SolarSystem.planets[i].group.children[j].rotation.y = SolarSystem.planets[i].group.children[j].rotation.y + (tempRotSpeed);
+            }
+        }
     }
 
     searchNearestObject()
 }
 
 const addMovement = (time) => {
+    const worldP = new THREE.Vector3();
     for (let i = 0; i < SolarSystem.planets.length; i++) {
         SolarSystem.planets[i].move(SolarSystem.mainStar);
-        SolarSystem.mainStar.move(SolarSystem.planets[i]);
+        // SolarSystem.mainStar.move(SolarSystem.planets[i]);
+
+        if (SolarSystem.planets[i].group != null) {
+            SolarSystem.planets[i].mesh.getWorldPosition(worldP);
+            for (let j = 0; j < SolarSystem.planets[i].group.children.length; j++) {
+                SolarSystem.planets[i].group.children[j].position.set(worldP.x, worldP.y, worldP.z)
+            }
+        }
     }
 }
 
@@ -280,7 +383,7 @@ const changeHtml = (html) => {
     doc.style.opacity = 0;
     setTimeout(() => {
         doc.style.opacity = 1;
-        if (html) doc.innerHTML = html;
+        if (html) doc.innerHTML = "";
     }, 1000);
 }
 
@@ -382,10 +485,10 @@ const _InitDocumentFunctions = (() => {
     if (document.querySelector("#contact")) {
         document.querySelector("#contact").addEventListener("click", () => {
 
-            cams._target = SolarSystem.planets[1].mesh;
+            cams._target = SolarSystem.planets[3].mesh;
             cams._camSpeed = 0;
 
-            changeHtml();
+            changeHtml(TEXTDEF.contact);
         });
     }
 
@@ -397,6 +500,12 @@ const _InitDocumentFunctions = (() => {
                 y: PROJECTPLANET.rotation.y + (e.deltaY * .003),
                 duration: 1,
             });
+            for (let i = 0; i < PROJECTPLANETGROUP.length; i++) {
+                gsap.to(PROJECTPLANETGROUP[i].rotation, {
+                    y: PROJECTPLANETGROUP[i].rotation.y + (e.deltaY * .003),
+                    duration: 1,
+                });
+            }
 
             searchNearestObject();
 
@@ -425,10 +534,18 @@ function animate(time) {
 
     if (cams._camSpeed < 1) cams._camSpeed += d * .02;
 
-    if (v.x) pivot.position.lerp(v, cams._camSpeed);
+    if (v.x) {
+        pivot.position.lerp(v, cams._camSpeed);
+        flyControls.target.lerp(v, cams._camSpeed);
+        // Use the direction vector to set camera rotation
+    }
+    camera.updateMatrixWorld();
+    flyControls.update();
 
-    objectOrbit(PROJECTPLANET, SolarSystem.objects[0], 0, new THREE.Vector3(0, 0, 100), new THREE.Vector3(0, 0, 0));
-    objectOrbit(PROJECTPLANET, SolarSystem.objects[1], 1, new THREE.Vector3(100, 0, 0), new THREE.Vector3(0, 100, 0));
+
+    // Yellow box and red box
+    // objectOrbit(PROJECTPLANET, SolarSystem.objects[0], 0, new THREE.Vector3(0, 0, 100), new THREE.Vector3(0, 0, 0));
+    // objectOrbit(PROJECTPLANET, SolarSystem.objects[1], 1, new THREE.Vector3(100, 0, 0), new THREE.Vector3(0, 100, 0));
 
     //check if there are intersection
 
@@ -436,11 +553,6 @@ function animate(time) {
     uniforms.u_time.value = clock.getElapsedTime();
     renderer.render(scene, camera);
 }
-
-//3d axis helper
-
-// const axesHelper = new THREE.AxesHelper(1000);
-// scene.add(axesHelper);
 
 
 if (WebGL.isWebGLAvailable()) {
